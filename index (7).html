@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Customer Feedback — Accelerated Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --navy:#0f2744;--cream:#faf9f6;--surface:#fff;
+  --border:#e2ddd6;--text:#1a1714;--text-muted:#8a8278;
+  --dev-bg:#eef2ff;--dev:#1B4FD8;
+  --int-bg:#fef3c7;--int:#92400E;
+  --know-bg:#dcfce7;--know:#166534;
+  --other-bg:#f3f4f6;--other:#374151;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;}
+header{background:var(--navy);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-img{background:#fff;border-radius:6px;padding:4px 8px;display:flex;align-items:center;}
+.logo-img img{height:28px;display:block;}
+.logo-text{color:#94a3b8;font-size:13px;font-weight:400;border-left:1px solid rgba(255,255,255,.15);padding-left:12px;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.last-updated{color:#94a3b8;font-size:11px;font-family:'DM Mono',monospace;}
+.refresh-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#cbd5e1;font-size:12px;font-family:'DM Sans',sans-serif;padding:5px 14px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;}
+.refresh-btn:hover{background:rgba(255,255,255,.15);color:#fff;}
+.refresh-btn:disabled{opacity:.5;cursor:not-allowed;}
+.live-badge{display:flex;align-items:center;gap:5px;font-size:11px;color:#4ade80;font-family:'DM Mono',monospace;}
+.pulse{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+main{padding:24px 28px;max-width:1400px;margin:0 auto;}
+.error-msg{background:#fde8e8;border:1px solid #fca5a5;border-radius:var(--r);padding:14px 18px;margin-bottom:18px;font-size:13px;color:#7b1d1d;}
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
+.metric-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:6px;}
+.metric-val{font-size:28px;font-weight:700;letter-spacing:-.04em;line-height:1;}
+.metric-sub{font-size:11px;color:var(--text-muted);margin-top:4px;}
+.c-navy{color:var(--navy);} .c-red{color:#991b1b;} .c-amber{color:#92400e;} .c-green{color:#166534;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.filter-btn{font-size:12px;font-weight:500;padding:5px 14px;border-radius:100px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.filter-btn:hover{background:#f0ede8;}
+.filter-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.charts-row{display:grid;grid-template-columns:1fr 1.6fr;gap:12px;margin-bottom:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;}
+.card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:14px;}
+.chart-wrap{position:relative;}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted);}
+.legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr.done-row td{opacity:.4;}
+tr:hover td{background:#faf9f6;}
+.badge{display:inline-block;font-size:11px;font-weight:500;padding:2px 8px;border-radius:100px;white-space:nowrap;}
+.b-dev{background:var(--dev-bg);color:var(--dev);}
+.b-int{background:var(--int-bg);color:var(--int);}
+.b-know{background:var(--know-bg);color:var(--know);}
+.b-other{background:var(--other-bg);color:var(--other);}
+.b-yes{background:#dcfce7;color:#166534;}
+.b-no{background:#fee2e2;color:#991b1b;}
+.b-hi{background:#fee2e2;color:#991b1b;}
+.b-mid{background:#fef3c7;color:#92400e;}
+.b-lo{background:#dcfce7;color:#166534;}
+footer{max-width:1400px;margin:0 auto;padding:14px 28px 28px;display:flex;align-items:center;gap:8px;}
+footer a{font-size:12px;color:var(--text-muted);text-decoration:none;transition:color .15s;}
+footer a:hover{color:var(--text);}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:14px;}
+.spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .7s linear infinite;}
+.loading-text{font-size:13px;color:var(--text-muted);}
+@media(max-width:900px){.metrics-grid{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}header{padding:0 16px;}main{padding:16px;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-img"><img src="data:image/jpeg;base64,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" alt="Accelerated Analytics"/></div>
+    <span class="logo-text">Customer Feedback</span>
+  </div>
+  <div class="header-right">
+    <a href="https://docs.google.com/spreadsheets/d/1fLV7bIqkjDKZ7c1TkO4OD4UnHC_8IOMQvK0HvybImuI/edit" target="_blank" style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#cbd5e1;font-size:12px;padding:5px 12px;border-radius:6px;text-decoration:none;transition:all .15s;font-family:'DM Sans',sans-serif;" onmouseover="this.style.background='rgba(255,255,255,.15)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.color='#cbd5e1'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Edit Sheet
+    </a>
+    <span class="last-updated" id="lastUpdated">Loading...</span>
+    <div class="live-badge" id="liveBadge" style="display:none;"><div class="pulse"></div>Live</div>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+      <svg id="refreshIcon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="metrics-grid">
+    <div class="metric"><div class="metric-label">Total items</div><div class="metric-val c-navy" id="mTotal">—</div><div class="metric-sub">across all brands</div></div>
+    <div class="metric"><div class="metric-label">Completed</div><div class="metric-val c-green" id="mDone">—</div><div class="metric-sub" id="mDonePct">—</div></div>
+    <div class="metric"><div class="metric-label">Open / In progress</div><div class="metric-val c-amber" id="mOpen">—</div><div class="metric-sub" id="mOpenPct">—</div></div>
+    <div class="metric"><div class="metric-label">High impact (4–5)</div><div class="metric-val c-red" id="mHigh">—</div><div class="metric-sub">business impact score</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-title">By feedback type</div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="typeChart" role="img" aria-label="Feedback by type"></canvas></div>
+      <div class="legend" id="typeLegend"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Open items by brand</div>
+      <div class="chart-wrap" id="brandChartWrap" style="height:200px;"><canvas id="brandChart" role="img" aria-label="Open items by brand"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">All feedback items</div>
+    <div class="filters" id="filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="open">Open</button>
+      <button class="filter-btn" data-filter="done">Completed</button>
+      <button class="filter-btn" data-filter="dev">Dev requests</button>
+      <button class="filter-btn" data-filter="high">High impact</button>
+    </div>
+    <div id="tableContainer">
+      <div class="loading"><div class="spinner"></div><span class="loading-text">Fetching live data...</span></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <svg viewBox="0 0 24 24" fill="none" stroke="#8a8278" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  <a href="https://docs.google.com/spreadsheets/d/1fLV7bIqkjDKZ7c1TkO4OD4UnHC_8IOMQvK0HvybImuI/edit" target="_blank">View source: Customer Feedback Tracking (Google Sheet)</a>
+</footer>
+
+<script>
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxEZMRTL03TWwqsv-9mDfCCSqhiSXOzR7JUCPTvFW8GiJwLzoJD_rjz7czVKlYcvAA/exec';
+
+let allRows = [];
+let typeChartInst = null;
+let brandChartInst = null;
+let currentFilter = 'all';
+
+function normalizeRow(r) {
+  const g = (...keys) => { for (const k of keys) { const v = r[k]; if (v !== undefined && v !== null && String(v).trim()) return String(v).trim(); } return ''; };
+  const brand    = g('Brand Account','Brand','brand_account','brand');
+  const feedback = g('Feedback','feedback');
+  const type     = g('Type','type','Feedback Type');
+  const action   = g('Action','action');
+  const impRaw   = g('Business Impact 1-5','Business Impact','impact','business_impact_15');
+  const impact   = parseInt(impRaw) || null;
+  const owner    = g('Owner','owner');
+  const completed = g('Completed','completed','Done','done');
+  const notes    = g('Notes','notes');
+
+  const doneVal = completed.toLowerCase().trim();
+  const done = doneVal === 'yes' || doneVal === 'true' || doneVal === '1';
+
+  let typeNorm = 'other';
+  const tl = type.toLowerCase();
+  if (tl.includes('dev') || tl.includes('request for dev')) typeNorm = 'dev';
+  else if (tl.includes('internal')) typeNorm = 'internal';
+  else if (tl.includes('knowledge')) typeNorm = 'knowledge';
+
+  return { brand, feedback, type: typeNorm, action, impact, owner, done, notes };
+}
+
+function typeBadge(t) {
+  const m = { dev:['Dev request','b-dev'], internal:['Internal','b-int'], knowledge:['Knowledge','b-know'], other:['Other','b-other'] };
+  const [label, cls] = m[t] || ['Other','b-other'];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function impactBadge(i) {
+  if (!i) return '<span style="color:#8a8278;">—</span>';
+  const cls = i >= 4 ? 'b-hi' : i >= 3 ? 'b-mid' : 'b-lo';
+  return `<span class="badge ${cls}">${i}</span>`;
+}
+
+function renderTable(filter) {
+  currentFilter = filter;
+  let rows = allRows;
+  if (filter === 'open')  rows = allRows.filter(r => !r.done);
+  if (filter === 'done')  rows = allRows.filter(r => r.done);
+  if (filter === 'dev')   rows = allRows.filter(r => r.type === 'dev');
+  if (filter === 'high')  rows = allRows.filter(r => r.impact >= 4);
+
+  const container = document.getElementById('tableContainer');
+  if (!rows.length) {
+    container.innerHTML = '<p style="text-align:center;padding:40px;color:#8a8278;font-size:13px;">No items match this filter.</p>';
+    return;
+  }
+  container.innerHTML = `<div style="overflow-x:auto;"><table>
+    <thead><tr>
+      <th style="width:110px;">Brand</th>
+      <th>Feedback</th>
+      <th style="width:95px;">Type</th>
+      <th style="width:115px;">Action</th>
+      <th style="width:55px;">Impact</th>
+      <th style="width:80px;">Owner</th>
+      <th style="width:65px;">Done</th>
+    </tr></thead>
+    <tbody>${rows.map(r => `
+      <tr class="${r.done ? 'done-row' : ''}">
+        <td style="font-weight:500;font-size:12px;">${r.brand||'—'}</td>
+        <td style="max-width:260px;">${r.feedback||'—'}</td>
+        <td>${typeBadge(r.type)}</td>
+        <td style="font-size:12px;color:#8a8278;">${r.action||'—'}</td>
+        <td style="text-align:center;">${impactBadge(r.impact)}</td>
+        <td style="font-size:12px;color:#8a8278;">${r.owner||'—'}</td>
+        <td style="text-align:center;">${r.done
+          ? '<span class="badge b-yes">Yes</span>'
+          : '<span class="badge b-no">No</span>'}</td>
+      </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function renderMetrics() {
+  const total = allRows.length;
+  const done  = allRows.filter(r => r.done).length;
+  const open  = total - done;
+  const high  = allRows.filter(r => r.impact >= 4).length;
+  document.getElementById('mTotal').textContent = total;
+  document.getElementById('mDone').textContent  = done;
+  document.getElementById('mDonePct').textContent = total ? Math.round(done/total*100)+'% complete' : '—';
+  document.getElementById('mOpen').textContent  = open;
+  document.getElementById('mOpenPct').textContent = total ? Math.round(open/total*100)+'% pending' : '—';
+  document.getElementById('mHigh').textContent  = high;
+}
+
+function renderCharts() {
+  const counts = {dev:0,internal:0,knowledge:0,other:0};
+  allRows.forEach(r => { counts[r.type] = (counts[r.type]||0) + 1; });
+  const labels = ['Dev request','Internal','Knowledge','Other'];
+  const values = [counts.dev, counts.internal, counts.knowledge, counts.other];
+  const colors = ['#1B4FD8','#D97706','#059669','#6B7280'];
+  if (typeChartInst) typeChartInst.destroy();
+  typeChartInst = new Chart(document.getElementById('typeChart'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.raw}} } }
+  });
+  document.getElementById('typeLegend').innerHTML = labels.map((l,i) =>
+    `<span class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${l} (${values[i]})</span>`).join('');
+
+  const brandCounts = {};
+  allRows.filter(r => !r.done).forEach(r => { if (r.brand) brandCounts[r.brand] = (brandCounts[r.brand]||0)+1; });
+  const sorted = Object.entries(brandCounts).sort((a,b) => b[1]-a[1]);
+  const h = Math.max(200, sorted.length * 36 + 60);
+  document.getElementById('brandChartWrap').style.height = h + 'px';
+  if (brandChartInst) brandChartInst.destroy();
+  brandChartInst = new Chart(document.getElementById('brandChart'), {
+    type: 'bar',
+    data: { labels: sorted.map(e=>e[0]), datasets: [{ data: sorted.map(e=>e[1]), backgroundColor:'#1B4FD8', borderRadius:4, borderWidth:0 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{stepSize:1,font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}, y:{ticks:{font:{size:11}}} } }
+  });
+}
+
+async function loadData() {
+  const btn  = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  btn.disabled = true;
+  icon.style.animation = 'spin .7s linear infinite';
+  document.getElementById('liveBadge').style.display = 'none';
+  document.getElementById('lastUpdated').textContent = 'Refreshing...';
+  document.getElementById('tableContainer').innerHTML =
+    '<div class="loading"><div class="spinner"></div><span class="loading-text">Fetching live data...</span></div>';
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL + '?t=' + Date.now(), {cache:'no-store'});
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.json();
+    if (!Array.isArray(raw) || !raw.length) throw new Error('No data returned');
+
+    allRows = raw.map(normalizeRow).filter(r => r.brand || r.feedback);
+    if (!allRows.length) throw new Error('No valid rows after parsing');
+
+    renderMetrics();
+    renderCharts();
+    renderTable(currentFilter);
+
+    document.getElementById('liveBadge').style.display = 'flex';
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent =
+      'Updated ' + now.toLocaleDateString('en-US',{month:'short',day:'numeric'}) +
+      ' at ' + now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('lastUpdated').textContent = 'Error — ' + err.message;
+    document.getElementById('tableContainer').innerHTML =
+      '<div class="error-msg"><strong>Could not load data.</strong> Check that the Google Apps Script is deployed as a web app with access set to \'Anyone\'.</div>';
+  } finally {
+    btn.disabled = false;
+    icon.style.animation = '';
+  }
+}
+
+document.getElementById('filters').addEventListener('click', e => {
+  if (!e.target.dataset.filter) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  if (allRows.length) renderTable(e.target.dataset.filter);
+});
+
+loadData();
+</script>
+</body>
+</html>
