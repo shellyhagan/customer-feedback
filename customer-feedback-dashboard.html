@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Customer Feedback Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #F5F4F0;
+    --surface: #FFFFFF;
+    --surface2: #EEEDE8;
+    --border: rgba(0,0,0,0.08);
+    --text: #1A1917;
+    --text-muted: #6B6963;
+    --text-faint: #A8A59E;
+    --accent: #1B4FD8;
+    --accent-bg: #EEF2FF;
+    --green: #166534;
+    --green-bg: #DCFCE7;
+    --amber: #92400E;
+    --amber-bg: #FEF3C7;
+    --red: #991B1B;
+    --red-bg: #FEE2E2;
+    --gray: #374151;
+    --gray-bg: #F3F4F6;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .header-left p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  .refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .refresh-btn:hover { opacity: 0.85; }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .refresh-btn svg {
+    width: 14px; height: 14px;
+    transition: transform 0.6s;
+  }
+
+  .refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-bar {
+    background: var(--accent-bg);
+    border-bottom: 1px solid rgba(27,79,216,0.12);
+    padding: 8px 32px;
+    font-size: 12px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-bar.error { background: var(--red-bg); color: var(--red); border-color: rgba(153,27,27,0.12); }
+  .status-bar.success { background: var(--green-bg); color: var(--green); border-color: rgba(22,101,52,0.12); }
+  .status-bar.hidden { display: none; }
+
+  main { padding: 28px 32px; max-width: 1280px; margin: 0 auto; }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  .metric-value {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .metric-sub {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 4px;
+  }
+
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  .chart-wrap { position: relative; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .filter-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover { background: var(--surface2); }
+  .filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-faint);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr.done td { opacity: 0.4; }
+  tr:hover td { background: var(--bg); }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+
+  .b-dev    { background: var(--accent-bg); color: var(--accent); }
+  .b-comm   { background: var(--green-bg);  color: var(--green); }
+  .b-int    { background: var(--amber-bg);  color: var(--amber); }
+  .b-other  { background: var(--gray-bg);   color: var(--gray); }
+  .b-yes    { background: var(--green-bg);  color: var(--green); }
+  .b-no     { background: var(--red-bg);    color: var(--red); }
+  .b-hi     { background: var(--red-bg);    color: var(--red); }
+  .b-mid    { background: var(--amber-bg);  color: var(--amber); }
+  .b-lo     { background: var(--green-bg);  color: var(--green); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-faint);
+    font-size: 13px;
+  }
+
+  .last-updated {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-family: 'DM Mono', monospace;
+    margin-top: 16px;
+    text-align: right;
+  }
+
+  @media (max-width: 900px) {
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    header { padding: 14px 16px; }
+    main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Customer Feedback</h1>
+    <p>Status Tracking · Accelerated Analytics</p>
+  </div>
+  <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
+    </svg>
+    Refresh data
+  </button>
+</header>
+
+<div class="status-bar hidden" id="statusBar"></div>
+
+<main>
+  <div class="metrics-grid" id="metricsGrid">
+    <div class="metric-card"><div class="metric-label">Total items</div><div class="metric-value" id="mTotal">—</div><div class="metric-sub">across all brands</div></div>
+    <div class="metric-card"><div class="metric-label">Completed</div><div class="metric-value" id="mDone" style="color:var(--green)">—</div><div class="metric-sub" id="mDonePct">—</div></div>
+    <div class="metric-card"><div class="metric-label">Open / In progress</div><div class="metric-value" id="mOpen" style="color:var(--amber)">—</div><div class="metric-sub" id="mOpenPct">—</div></div>
+    <div class="metric-card"><div class="metric-label">High impact (4–5)</div><div class="metric-value" id="mHigh" style="color:var(--red)">—</div><div class="metric-sub">business impact score</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-title">By feedback type</div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="typeChart" role="img" aria-label="Doughnut chart of feedback by type"></canvas></div>
+      <div class="legend" id="typeLegend"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Items by brand</div>
+      <div class="chart-wrap" id="brandChartWrap" style="height:200px;"><canvas id="brandChart" role="img" aria-label="Bar chart of feedback by brand"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">All feedback items</div>
+    <div class="filters" id="filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="open">Open</button>
+      <button class="filter-btn" data-filter="done">Completed</button>
+      <button class="filter-btn" data-filter="dev">Dev requests</button>
+      <button class="filter-btn" data-filter="high">High impact</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:110px;">Brand</th>
+            <th>Feedback</th>
+            <th style="width:90px;">Type</th>
+            <th style="width:110px;">Action</th>
+            <th style="width:55px;">Impact</th>
+            <th style="width:80px;">Owner</th>
+            <th style="width:65px;">Done</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="7" class="empty-state">Click "Refresh data" to load your SharePoint file.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="last-updated" id="lastUpdated"></div>
+  </div>
+</main>
+
+<script>
+const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
+const SP_URI = 'file:///b!e-Z-8sQsoEuHk71RyduDy_nEMgwCWlhKj-HpXmS_wEm4-LglEy3OQJKL-DrM0Bdn/013HLIIXXUPREAJ3GFRBBLLWTOAVEGZZFO';
+
+let allRows = [];
+let typeChart = null;
+let brandChart = null;
+
+function setStatus(msg, type = 'info') {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.className = 'status-bar ' + (msg ? type : 'hidden');
+}
+
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  setStatus('Connecting to SharePoint…', 'info');
+
+  try {
+    const res = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: `You are a data extraction assistant. You will be given raw text content from a SharePoint Excel file (Customer Feedback Status Tracking). 
+Parse it into a JSON array of feedback items. Each item should have these fields:
+- brand (string)
+- feedback (string) 
+- type: one of "dev", "internal", "knowledge", "other"
+- action (string or null)
+- impact (number 1-5 or null)
+- owner (string or null)
+- done (boolean)
+- notes (string or null)
+
+Return ONLY a valid JSON array, no markdown, no explanation. If a field is missing or unclear, use null.`,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Please read and parse the customer feedback SharePoint file at this URI and return the structured JSON: ' + SP_URI
+              }
+            ]
+          }
+        ],
+        mcp_servers: [
+          {
+            type: 'url',
+            url: 'https://microsoft365.mcp.claude.com/mcp',
+            name: 'microsoft365-mcp'
+          }
+        ]
+      })
+    });
+
+    if (!res.ok) throw new Error('API error: ' + res.status);
+    const data = await res.json();
+
+    // Extract JSON from response
+    let jsonText = '';
+    for (const block of data.content) {
+      if (block.type === 'text') jsonText += block.text;
+    }
+
+    jsonText = jsonText.replace(/```json|```/g, '').trim();
+    const rows = JSON.parse(jsonText);
+
+    if (!Array.isArray(rows)) throw new Error('Unexpected response format');
+    allRows = rows;
+
+    renderAll();
+    setStatus('✓ Data refreshed from SharePoint · ' + new Date().toLocaleString(), 'success');
+    document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleString();
+
+    setTimeout(() => setStatus('', ''), 4000);
+  } catch (err) {
+    console.error(err);
+    setStatus('Error loading data: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+function renderAll() {
+  updateMetrics();
+  renderTypeChart();
+  renderBrandChart();
+  renderTable('all');
+}
+
+function updateMetrics() {
+  const total = allRows.length;
+  const done = allRows.filter(r => r.done).length;
+  const open = total - done;
+  const high = allRows.filter(r => r.impact >= 4).length;
+
+  document.getElementById('mTotal').textContent = total;
+  document.getElementById('mDone').textContent = done;
+  document.getElementById('mDonePct').textContent = Math.round(done / total * 100) + '% complete';
+  document.getElementById('mOpen').textContent = open;
+  document.getElementById('mOpenPct').textContent = Math.round(open / total * 100) + '% pending';
+  document.getElementById('mHigh').textContent = high;
+}
+
+function renderTypeChart() {
+  const counts = { dev: 0, internal: 0, knowledge: 0, other: 0 };
+  allRows.forEach(r => { if (counts[r.type] !== undefined) counts[r.type]++; else counts.other++; });
+
+  const labels = ['Dev request', 'Internal', 'Knowledge', 'Other'];
+  const values = [counts.dev, counts.internal, counts.knowledge, counts.other];
+  const colors = ['#1B4FD8', '#D97706', '#059669', '#6B7280'];
+
+  if (typeChart) typeChart.destroy();
+  typeChart = new Chart(document.getElementById('typeChart'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.raw } }
+      }
+    }
+  });
+
+  const legend = document.getElementById('typeLegend');
+  legend.innerHTML = labels.map((l, i) => `<span class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${l} (${values[i]})</span>`).join('');
+}
+
+function renderBrandChart() {
+  const counts = {};
+  allRows.forEach(r => { counts[r.brand] = (counts[r.brand] || 0) + 1; });
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  const h = Math.max(200, sorted.length * 36 + 60);
+  document.getElementById('brandChartWrap').style.height = h + 'px';
+
+  if (brandChart) brandChart.destroy();
+  brandChart = new Chart(document.getElementById('brandChart'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(e => e[0]),
+      datasets: [{
+        data: sorted.map(e => e[1]),
+        backgroundColor: '#1B4FD8',
+        borderRadius: 4,
+        borderWidth: 0
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function typeBadge(t) {
+  const map = { dev: ['Dev request', 'b-dev'], internal: ['Internal', 'b-int'], knowledge: ['Knowledge', 'b-comm'], other: ['Other', 'b-other'] };
+  const [label, cls] = map[t] || ['Other', 'b-other'];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function impactBadge(i) {
+  if (!i) return '<span style="color:var(--text-faint);">—</span>';
+  const cls = i >= 4 ? 'b-hi' : i >= 3 ? 'b-mid' : 'b-lo';
+  return `<span class="badge ${cls}">${i}</span>`;
+}
+
+function renderTable(filter) {
+  let rows = allRows;
+  if (filter === 'open')  rows = allRows.filter(r => !r.done);
+  if (filter === 'done')  rows = allRows.filter(r => r.done);
+  if (filter === 'dev')   rows = allRows.filter(r => r.type === 'dev');
+  if (filter === 'high')  rows = allRows.filter(r => r.impact >= 4);
+
+  const body = document.getElementById('tableBody');
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="7" class="empty-state">No items match this filter.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map(r => `
+    <tr class="${r.done ? 'done' : ''}">
+      <td style="font-weight:500;font-size:12px;">${r.brand || '—'}</td>
+      <td style="max-width:260px;">${r.feedback || '—'}</td>
+      <td>${typeBadge(r.type)}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${r.action || '—'}</td>
+      <td style="text-align:center;">${impactBadge(r.impact)}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${r.owner || '—'}</td>
+      <td style="text-align:center;">
+        ${r.done
+          ? '<span class="badge b-yes">Yes</span>'
+          : '<span class="badge b-no">No</span>'}
+      </td>
+    </tr>`).join('');
+}
+
+// Filter buttons
+document.getElementById('filters').addEventListener('click', e => {
+  if (!e.target.dataset.filter) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  if (allRows.length) renderTable(e.target.dataset.filter);
+});
+</script>
+</body>
+</html>
